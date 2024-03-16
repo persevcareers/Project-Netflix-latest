@@ -1,0 +1,31 @@
+FROM node:16.17.0-alpine as builder: This sets the base image to Node.js 16.17.0 on Alpine Linux and names this stage as "builder".
+
+WORKDIR /app: Sets the working directory inside the container to /app.
+
+COPY ./package.json .: Copies the package.json file from the host machine to the /app directory inside the container.
+
+COPY ./yarn.lock .: Copies the yarn.lock file from the host machine to the /app directory inside the container.
+
+RUN yarn install: Runs yarn install to install dependencies defined in package.json.
+
+COPY . .: Copies all files from the host machine to the /app directory inside the container.
+
+ARG TMDB_V3_API_KEY: Declares a build argument TMDB_V3_API_KEY, which can be passed during the build process to inject the API key.
+
+ENV VITE_APP_TMDB_V3_API_KEY=${TMDB_V3_API_KEY}: Sets an environment variable VITE_APP_TMDB_V3_API_KEY using the value passed via the TMDB_V3_API_KEY build argument. This is likely used by the application to access a third-party API (The Movie Database in this case).
+
+ENV VITE_APP_API_ENDPOINT_URL="https://api.themoviedb.org/3": Sets another environment variable VITE_APP_API_ENDPOINT_URL to define the base URL for the API endpoint.
+
+RUN yarn build: Executes the build script for the application. This could involve transpilation, bundling, and other build processes specific to the project.
+
+FROM nginx:stable-alpine: Starts a new stage in the Dockerfile, using the NGINX stable-alpine image as the base.
+
+WORKDIR /usr/share/nginx/html: Sets the working directory inside the container to /usr/share/nginx/html, where NGINX serves static files by default.
+
+RUN rm -rf ./*: Removes all existing files in the NGINX HTML directory to prepare for copying new files.
+
+COPY --from=builder /app/dist .: Copies the build artifacts from the "builder" stage (the /app/dist directory) into the NGINX HTML directory.
+
+EXPOSE 80: Exposes port 80 to allow external access to the NGINX server.
+
+ENTRYPOINT ["nginx", "-g", "daemon off;"]: Sets the default command to run NGINX with the configuration option to run in the foreground (daemon off;). This ensures that Docker container doesn't exit immediately after starting NGINX, allowing it to serve requests.
